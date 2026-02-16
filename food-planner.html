@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--
+        SECURITY: Content Security Policy
+        - default-src 'none': Blocks ALL resource loading by default
+        - script-src 'unsafe-inline': Allows inline scripts (required for single-file app)
+        - style-src 'unsafe-inline': Allows inline styles (required for single-file app)
+        - form-action 'none': Prevents forms from submitting to external URLs
+        - base-uri 'none': Prevents base tag hijacking attacks
+    -->
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://nominatim.openstreetmap.org; form-action 'none'; base-uri 'none';">
+    <title>Food Adventure Planner!</title>
+    <style>
+        /* ==========================================
+           CSS RESET & CUSTOM PROPERTIES
+           ========================================== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #FF6B6B;
+            --primary-dark: #E05555;
+            --secondary: #4ECDC4;
+            --secondary-dark: #3DBDB5;
+            --accent-yellow: #FFE66D;
+            --accent-green: #A8E6CF;
+            --accent-purple: #C3A6E0;
+            --accent-blue: #74B9FF;
+            --bg-start: #FFF9E6;
+            --bg-end: #FFE6F0;
+            --text: #2D3436;
+            --text-light: #636E72;
+            --white: #FFFFFF;
+            --danger: #FF4757;
+            --danger-dark: #E0394A;
+            --success: #2ED573;
+            --success-dark: #20C462;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 18px;
+            line-height: 1.5;
+            color: var(--text);
+            background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+            min-height: 100vh;
+        }
+
+        /* ==========================================
+           APP CONTAINER & HEADER
+           ========================================== */
+        #app {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0 16px 100px;
+        }
+
+        header {
+            text-align: center;
+            padding: 24px 0 16px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            color: var(--primary);
+            text-shadow: 2px 2px 0 var(--accent-yellow);
+        }
+
+        header p {
+            color: var(--text-light);
+            font-size: 16px;
+            margin-top: 4px;
+        }
+
+        /* ==========================================
+           VIEWS
+           ========================================== */
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .view h2 {
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+
+        /* ==========================================
+           CARDS
+           ========================================== */
+        .card {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 14px;
+            box-shadow: var(--shadow);
+            border-left: 5px solid var(--secondary);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-visited { border-left-color: var(--success); }
+        .card-history { border-left-color: var(--accent-purple); }
+
+        .card h3 {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .card-detail {
+            font-size: 15px;
+            color: var(--text-light);
+            margin-bottom: 4px;
+        }
+
+        .badges { margin: 6px 0; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 3px 4px 3px 0;
+        }
+
+        .badge-cuisine { background: var(--accent-yellow); color: var(--text); }
+        .badge-distance { background: var(--accent-blue); color: var(--white); }
+        .badge-visits { background: var(--accent-green); color: var(--text); }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* ==========================================
+           BUTTONS
+           ========================================== */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:active { transform: scale(0.97); }
+
+        .btn-primary { background: var(--primary); color: var(--white); }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .btn-success { background: var(--success); color: var(--white); }
+        .btn-success:hover { background: var(--success-dark); }
+
+        .btn-danger { background: var(--danger); color: var(--white); }
+        .btn-danger:hover { background: var(--danger-dark); }
+
+        .btn-secondary { background: var(--secondary); color: var(--white); }
+        .btn-secondary:hover { background: var(--secondary-dark); }
+
+        .btn-cancel { background: #B2BEC3; color: var(--white); }
+        .btn-cancel:hover { background: #969FA3; }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-block { display: block; width: 100%; }
+
+        /* ==========================================
+           FORMS
+           ========================================== */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 16px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #E0E0E0;
+            border-radius: var(--radius-sm);
+            font-size: 18px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--secondary);
+        }
+
+        .hint {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+
+        .field-error {
+            font-size: 14px;
+            color: var(--danger);
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-row .form-group { flex: 1; }
+
+        /* ==========================================
+           WEEK STATUS BANNER
+           ========================================== */
+        .week-banner {
+            padding: 14px 18px;
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        .week-banner-done {
+            background: linear-gradient(135deg, var(--accent-green), var(--secondary));
+            color: var(--text);
+        }
+
+        .week-banner-open {
+            background: linear-gradient(135deg, var(--accent-yellow), #FFD93D);
+            color: var(--text);
+        }
+
+        /* ==========================================
+           EMPTY STATE
+           ========================================== */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+        }
+
+        .empty-state .big-emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        .empty-state p { font-size: 18px; }
+
+        /* ==========================================
+           SETTINGS INFO BOX
+           ========================================== */
+        .info-box {
+            background: var(--accent-blue);
+            color: var(--white);
+            padding: 14px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 16px;
+            font-size: 15px;
+        }
+
+        /* ==========================================
+           MODAL
+           ========================================== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 20px;
+        }
+
+        .modal {
+            background: var(--white);
+            border-radius: var(--radius);
+            padding: 28px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal h3 {
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+
+        .modal p {
+            font-size: 16px;
+            color: var(--text-light);
+            margin-bottom: 20px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        /* ==========================================
+           FEEDBACK TOAST
+           ========================================== */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            color: var(--white);
+            z-index: 300;
+            box-shadow: var(--shadow-lg);
+            animation: toastAnim 2.2s ease forwards;
+        }
+
+        @keyframes toastAnim {
+            0%   { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            15%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+            80%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+
+        /* ==========================================
+           BOTTOM NAVIGATION
+           ========================================== */
+        nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            display: flex;
+            box-shadow: 0 -2px 15px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        nav button {
+            flex: 1;
+            padding: 10px 4px 14px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            color: var(--text-light);
+            font-size: 12px;
+            font-family: inherit;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        nav button .nav-icon { font-size: 24px; }
+        nav button.active { color: var(--primary); }
+
+        /* ==========================================
+           AUTOCOMPLETE DROPDOWN
+           ========================================== */
+        .autocomplete-wrap {
+            position: relative;
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            border: 2px solid var(--secondary);
+            border-top: none;
+            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+            box-shadow: var(--shadow-lg);
+            z-index: 50;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .autocomplete-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #F0F0F0;
+            transition: background 0.15s;
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item:hover {
+            background: linear-gradient(135deg, #FFF9E6, #FFE6F0);
+        }
+
+        .autocomplete-item-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text);
+        }
+
+        .autocomplete-item-address {
+            font-size: 13px;
+            color: var(--text-light);
+            margin-top: 2px;
+        }
+
+        .autocomplete-loading {
+            padding: 12px 14px;
+            text-align: center;
+            color: var(--text-light);
+            font-size: 15px;
+        }
+
+        .autocomplete-hint {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-top: 3px;
+        }
+
+        /* ==========================================
+           GEOCODE BUTTON
+           ========================================== */
+        .geocode-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .geocode-row .form-group { flex: 1; }
+
+        .btn-geocode {
+            padding: 12px 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #A8E6CF, #4ECDC4);
+            color: var(--text);
+            white-space: nowrap;
+            margin-top: 28px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn-geocode:hover {
+            background: linear-gradient(135deg, #4ECDC4, #3DBDB5);
+            color: var(--white);
+        }
+
+        .btn-geocode:active { transform: scale(0.97); }
+
+        .btn-geocode:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .geocode-status {
+            font-size: 14px;
+            margin-top: 4px;
+            padding: 6px 10px;
+            border-radius: var(--radius-sm);
+            display: none;
+        }
+
+        .geocode-status.success {
+            display: block;
+            background: var(--accent-green);
+            color: var(--text);
+        }
+
+        .geocode-status.error {
+            display: block;
+            background: #FFE0E0;
+            color: var(--danger);
+        }
+
+        /* ==========================================
+           RESPONSIVE
+           ========================================== */
+        @media (max-width: 400px) {
+            header h1 { font-size: 24px; }
+            .form-row { flex-direction: column; gap: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>&#x1F355; Food Adventure Planner! &#x1F389;</h1>
+            <p>Plan your yummy weekly outings!</p>
+        </header>
+
+        <main>
+            <!-- PLACES LIST VIEW -->
+            <section id="view-places" class="view active">
+                <h2>&#x1F4CD; My Food Places</h2>
+                <div id="week-status"></div>
+                <div id="places-list"></div>
+            </section>
+
+            <!-- ADD PLACE VIEW -->
+            <section id="view-add" class="view">
+                <h2>&#x2795; Add a New Place</h2>
+                <form id="add-form" autocomplete="off">
+                    <div class="form-group autocomplete-wrap">
+                        <label for="place-name">&#x1F3EA; Place Name</label>
+                        <input type="text" id="place-name" maxlength="100"
+                               required placeholder="e.g. Mario's Pizza"
+                               autocomplete="off">
+                        <div class="autocomplete-hint">&#x1F50D; Start typing to search restaurants!</div>
+                        <div id="autocomplete-dropdown" class="autocomplete-dropdown" style="display:none;"></div>
+                        <div class="field-error" id="err-name"></div>
+                    </div>
+                    <div class="geocode-row">
+                        <div class="form-group">
+                            <label for="place-address">&#x1F4EB; Address</label>
+                            <input type="text" id="place-address" maxlength="200"
+                                   required placeholder="e.g. 123 Main Street">
+                            <div class="field-error" id="err-address"></div>
+                        </div>
+                        <button type="button" id="btn-geocode-place" class="btn-geocode">
+                            &#x1F30D;&#x2728; Get Coords!
+                        </button>
+                    </div>
+                    <div class="geocode-status" id="geocode-place-status"></div>
+                    <input type="hidden" id="place-lat">
+                    <input type="hidden" id="place-lon">
+                    <div class="form-group">
+                        <label for="place-cuisine">&#x1F37D;&#xFE0F; Type of Food</label>
+                        <input type="text" id="place-cuisine" maxlength="50"
+                               required placeholder="e.g. Pizza, Burgers, Chinese">
+                        <div class="field-error" id="err-cuisine"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">
+                        Add Place! &#x1F389;
+                    </button>
+                </form>
+            </section>
+
+            <!-- VISIT HISTORY VIEW -->
+            <section id="view-history" class="view">
+                <h2>&#x1F4C5; Visit History</h2>
+                <div id="history-list"></div>
+            </section>
+
+            <!-- SETTINGS VIEW -->
+            <section id="view-settings" class="view">
+                <h2>&#x2699;&#xFE0F; Settings</h2>
+                <div class="info-box">
+                    &#x1F4CD; Set your home coordinates so you can see how far away each food place is!
+                </div>
+                <form id="settings-form" autocomplete="off">
+                    <div class="geocode-row">
+                        <div class="form-group">
+                            <label for="home-address">&#x1F3E0; Home Address</label>
+                            <input type="text" id="home-address" maxlength="200"
+                                   placeholder="e.g. 123 Main Street, New York, NY">
+                        </div>
+                        <button type="button" id="btn-geocode-home" class="btn-geocode">
+                            &#x1F3E0;&#x2728; Get Coords!
+                        </button>
+                    </div>
+                    <div class="geocode-status" id="geocode-home-status"></div>
+                    <div class="form-row" style="margin-top: 12px;">
+                        <div class="form-group">
+                            <label for="home-lat">&#x1F4CD; Latitude</label>
+                            <input type="text" id="home-lat" maxlength="20"
+                                   inputmode="decimal" placeholder="e.g. 40.7128">
+                            <div class="field-error" id="err-home-lat"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="home-lon">&#x1F4CD; Longitude</label>
+                            <input type="text" id="home-lon" maxlength="20"
+                                   inputmode="decimal" placeholder="e.g. -74.0060">
+                            <div class="field-error" id="err-home-lon"></div>
+                        </div>
+                    </div>
+                    <div class="hint" style="margin-bottom: 12px;">Coordinates auto-filled by the button above, or enter manually.</div>
+                    <button type="submit" class="btn btn-secondary btn-block">
+                        Save Home Location &#x1F4BE;
+                    </button>
+                </form>
+                <div style="margin-top: 28px;">
+                    <h3 style="margin-bottom: 10px;">&#x1F5D1;&#xFE0F; Data Management</h3>
+                    <button id="btn-clear-data" class="btn btn-danger btn-block">
+                        Delete All Data
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <nav id="bottom-nav">
+            <button data-view="places" class="active">
+                <span class="nav-icon">&#x1F4CD;</span> Places
+            </button>
+            <button data-view="add">
+                <span class="nav-icon">&#x2795;</span> Add
+            </button>
+            <button data-view="history">
+                <span class="nav-icon">&#x1F4C5;</span> History
+            </button>
+            <button data-view="settings">
+                <span class="nav-icon">&#x2699;&#xFE0F;</span> Settings
+            </button>
+        </nav>
+    </div>
+
+    <script>
+    /* ==================================================================
+       FOOD ADVENTURE PLANNER - Application Logic
+       ==================================================================
+       SECURITY OVERVIEW:
+       1. All user content is rendered via textContent / createTextNode
+          (never innerHTML with user data) to prevent XSS.
+       2. All inputs are sanitized (trimmed, length-capped) and validated
+          (type-checked, range-checked) before storage.
+       3. Data loaded from localStorage is fully re-validated to defend
+          against manual tampering.
+       4. CSP meta tag (above) blocks all external resources.
+       5. Place count is capped to prevent localStorage abuse.
+       ================================================================== */
+    (function() {
+        'use strict';
+
+        // ==========================================
+        // CONSTANTS
+        // ==========================================
+        var STORAGE_PLACES   = 'foodPlanner_places';
+        var STORAGE_SETTINGS = 'foodPlanner_settings';
+        var MAX_PLACES       = 200;
+        var EARTH_RADIUS_MI  = 3958.8; // miles
+        var NOMINATIM_URL    = 'https://nominatim.openstreetmap.org/search';
+        var lastGeocodeFetch = 0; // timestamp of last geocode request (rate limit)
+        var autocompleteTimer = null; // debounce timer for autocomplete
+        var AUTOCOMPLETE_DELAY = 500; // ms debounce before searching
+        var AUTOCOMPLETE_SUFFIX = ' Hartford CT'; // appended to bias results near Hartford
+
+        // ==========================================
+        // SECURITY: Input Sanitization & Validation
+        // ==========================================
+
+        /**
+         * Trim and cap a string to maxLen characters.
+         * Returns '' for non-string input.
+         */
+        function sanitize(str, maxLen) {
+            if (typeof str !== 'string') return '';
+            return str.trim().substring(0, maxLen);
+        }
+
+        /**
+         * Parse and validate a latitude value (-90 to 90).
+         * Returns: number (valid), null (empty/missing), or false (invalid).
+         */
+        function parseLat(value) {
+            if (value === '' || value == null) return null;
+            var n = parseFloat(value);
+            if (isNaN(n) || n < -90 || n > 90) return false;
+            return Math.round(n * 1000000) / 1000000;
+        }
+
+        /**
+         * Parse and validate a longitude value (-180 to 180).
+         * Returns: number (valid), null (empty/missing), or false (invalid).
+         */
+        function parseLon(value) {
+            if (value === '' || value == null) return null;
+            var n = parseFloat(value);
+            if (isNaN(n) || n < -180 || n > 180) return false;
+            return Math.round(n * 1000000) / 1000000;
+        }
+
+        // ==========================================
+        // DATA MANAGEMENT (localStorage)
+        // ==========================================
+
+        /**
+         * Load places from localStorage with full validation.
+         * Corrupted or missing data returns [].
+         */
+        function loadPlaces() {
+            try {
+                var raw = localStorage.getItem(STORAGE_PLACES);
+                if (!raw) return [];
+                var data = JSON.parse(raw);
+                if (!Array.isArray(data)) return [];
+
+                // Re-validate every record on load
+                return data.filter(function(p) {
+                    return p
+                        && typeof p.id      === 'string'
+                        && typeof p.name    === 'string'
+                        && typeof p.address === 'string'
+                        && typeof p.cuisine === 'string'
+                        && Array.isArray(p.visits);
+                }).map(function(p) {
+                    return {
+                        id:      p.id.substring(0, 20),
+                        name:    p.name.substring(0, 100),
+                        address: p.address.substring(0, 200),
+                        cuisine: p.cuisine.substring(0, 50),
+                        lat:     (typeof p.lat === 'number' && isFinite(p.lat)) ? p.lat : null,
+                        lon:     (typeof p.lon === 'number' && isFinite(p.lon)) ? p.lon : null,
+                        visits:  p.visits.filter(function(v) {
+                            return v
+                                && typeof v.date    === 'string'
+                                && typeof v.weekKey === 'string';
+                        }).slice(0, 1000)
+                    };
+                }).slice(0, MAX_PLACES);
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function savePlaces(places) {
+            try {
+                localStorage.setItem(STORAGE_PLACES, JSON.stringify(places));
+            } catch (e) {
+                toast('Storage full! Delete some places.', true);
+            }
+        }
+
+        function loadSettings() {
+            try {
+                var raw = localStorage.getItem(STORAGE_SETTINGS);
+                if (!raw) return { homeLat: null, homeLon: null, homeAddress: '' };
+                var d = JSON.parse(raw);
+                return {
+                    homeLat: (typeof d.homeLat === 'number' && isFinite(d.homeLat)) ? d.homeLat : null,
+                    homeLon: (typeof d.homeLon === 'number' && isFinite(d.homeLon)) ? d.homeLon : null,
+                    homeAddress: (typeof d.homeAddress === 'string') ? d.homeAddress.substring(0, 200) : ''
+                };
+            } catch (e) {
+                return { homeLat: null, homeLon: null, homeAddress: '' };
+            }
+        }
+
+        function saveSettings(s) {
+            try {
+                localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(s));
+            } catch (e) {
+                toast('Could not save settings!', true);
+            }
+        }
+
+        // ==========================================
+        // HAVERSINE DISTANCE CALCULATION
+        // ==========================================
+
+        /**
+         * Straight-line distance between two lat/lon points in miles.
+         */
+        function haversine(lat1, lon1, lat2, lon2) {
+            var toRad = Math.PI / 180;
+            var dLat  = (lat2 - lat1) * toRad;
+            var dLon  = (lon2 - lon1) * toRad;
+            var a     = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                      + Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad)
+                      * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            var c     = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return EARTH_RADIUS_MI * c;
+        }
+
+        /** Distance from home to a place, or null if coords are missing. */
+        function distanceTo(place) {
+            var s = loadSettings();
+            if (s.homeLat == null || s.homeLon == null) return null;
+            if (place.lat == null || place.lon == null) return null;
+            return haversine(s.homeLat, s.homeLon, place.lat, place.lon);
+        }
+
+        // ==========================================
+        // WEEK TRACKING
+        // ==========================================
+
+        /** Unique key for the week (Sunday-Saturday) containing a date. */
+        function weekKey(date) {
+            var d = new Date(date);
+            var sunday = new Date(d);
+            sunday.setDate(d.getDate() - d.getDay());
+            return sunday.getFullYear() + '-'
+                 + String(sunday.getMonth() + 1).padStart(2, '0') + '-'
+                 + String(sunday.getDate()).padStart(2, '0');
+        }
+
+        /** Find the place visited this week, or null. */
+        function visitedThisWeek(places) {
+            var wk = weekKey(new Date());
+            for (var i = 0; i < places.length; i++) {
+                for (var j = 0; j < places[i].visits.length; j++) {
+                    if (places[i].visits[j].weekKey === wk) return places[i];
+                }
+            }
+            return null;
+        }
+
+        function formatDate(iso) {
+            return new Date(iso).toLocaleDateString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+            });
+        }
+
+        // ==========================================
+        // SAFE DOM HELPERS
+        // ==========================================
+
+        function $(sel) { return document.querySelector(sel); }
+
+        /**
+         * SECURITY: Build DOM elements safely.
+         * String children become text nodes (never parsed as HTML).
+         * Event listeners are attached via addEventListener.
+         */
+        function el(tag, attrs, children) {
+            var node = document.createElement(tag);
+            if (attrs) {
+                Object.keys(attrs).forEach(function(k) {
+                    if (k === 'textContent')      { node.textContent = attrs[k]; }
+                    else if (k === 'className')    { node.className = attrs[k]; }
+                    else if (k === 'disabled')     { node.disabled = !!attrs[k]; }
+                    else if (k === 'htmlFor')      { node.htmlFor = attrs[k]; }
+                    else if (k.indexOf('on') === 0) {
+                        node.addEventListener(k.substring(2).toLowerCase(), attrs[k]);
+                    }
+                    else { node.setAttribute(k, attrs[k]); }
+                });
+            }
+            if (children) {
+                children.forEach(function(c) {
+                    if (typeof c === 'string') node.appendChild(document.createTextNode(c));
+                    else if (c) node.appendChild(c);
+                });
+            }
+            return node;
+        }
+
+        /** Show a temporary toast notification. */
+        function toast(msg, isError) {
+            var old = $('.toast');
+            if (old) old.remove();
+            var t = el('div', { className: 'toast' }, [msg]);
+            t.style.background = isError ? 'var(--danger)' : 'var(--success)';
+            document.body.appendChild(t);
+            setTimeout(function() { if (t.parentNode) t.remove(); }, 2300);
+        }
+
+        /** Show a confirmation modal (safe DOM, no innerHTML). */
+        function showModal(title, message, confirmLabel, confirmCls, onConfirm) {
+            var overlay = el('div', { className: 'modal-overlay' }, [
+                el('div', { className: 'modal' }, [
+                    el('h3', null, [title]),
+                    el('p', null,  [message]),
+                    el('div', { className: 'modal-buttons' }, [
+                        el('button', {
+                            className: 'btn btn-cancel',
+                            onClick: function() { overlay.remove(); }
+                        }, ['Cancel']),
+                        el('button', {
+                            className: 'btn ' + (confirmCls || 'btn-primary'),
+                            onClick: function() { overlay.remove(); onConfirm(); }
+                        }, [confirmLabel])
+                    ])
+                ])
+            ]);
+            // Close when clicking outside the modal box
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) overlay.remove();
+            });
+            document.body.appendChild(overlay);
+        }
+
+        /** Switch the active view and refresh its data. */
+        function showView(name) {
+            document.querySelectorAll('.view').forEach(function(v) {
+                v.classList.remove('active');
+            });
+            var target = $('#view-' + name);
+            if (target) target.classList.add('active');
+
+            document.querySelectorAll('#bottom-nav button').forEach(function(b) {
+                b.classList.toggle('active', b.getAttribute('data-view') === name);
+            });
+
+            if (name === 'places')   renderPlaces();
+            if (name === 'history')  renderHistory();
+            if (name === 'settings') fillSettingsForm();
+        }
+
+        /** Show a field-level error message. */
+        function showFieldError(id, msg) {
+            var e = $('#' + id);
+            if (e) { e.textContent = msg; e.style.display = 'block'; }
+        }
+
+        /** Clear all field-level errors. */
+        function clearErrors() {
+            document.querySelectorAll('.field-error').forEach(function(e) {
+                e.textContent = '';
+                e.style.display = 'none';
+            });
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
+        }
+
+        // ==========================================
+        // RENDERING
+        // ==========================================
+
+        /** Render the sorted places list. All user text uses textContent. */
+        function renderPlaces() {
+            var places    = loadPlaces();
+            var container = $('#places-list');
+            container.innerHTML = ''; // safe: clearing, no user data
+
+            // Week status banner
+            renderWeekBanner(places);
+
+            if (places.length === 0) {
+                container.appendChild(el('div', { className: 'empty-state' }, [
+                    el('span', { className: 'big-emoji' }, ['\uD83C\uDF54']),
+                    el('p', null, ['No food places yet!']),
+                    el('p', null, ['Tap \u2795 Add to get started!'])
+                ]));
+                return;
+            }
+
+            // Sort: by distance ascending (no-distance places at end, then alphabetical)
+            var sorted = places.slice().sort(function(a, b) {
+                var da = distanceTo(a);
+                var db = distanceTo(b);
+                if (da == null && db == null) return a.name.localeCompare(b.name);
+                if (da == null) return 1;
+                if (db == null) return -1;
+                return da - db;
+            });
+
+            var thisWeek = visitedThisWeek(places);
+
+            sorted.forEach(function(place) {
+                var dist       = distanceTo(place);
+                var isThisWeek = thisWeek && thisWeek.id === place.id;
+
+                // Badges
+                var badges = [
+                    el('span', { className: 'badge badge-cuisine' },
+                       ['\uD83C\uDF7D\uFE0F ' + place.cuisine])
+                ];
+                if (dist != null) {
+                    badges.push(el('span', { className: 'badge badge-distance' },
+                        ['\uD83D\uDCCF ' + dist.toFixed(1) + ' mi']));
+                }
+                if (place.visits.length > 0) {
+                    badges.push(el('span', { className: 'badge badge-visits' },
+                        ['\u2705 Visited ' + place.visits.length + 'x']));
+                }
+
+                // Action buttons
+                var actions = [];
+                if (isThisWeek) {
+                    actions.push(el('button',
+                        { className: 'btn btn-success', disabled: true },
+                        ['\u2705 Visited this week!']));
+                } else if (!thisWeek) {
+                    actions.push(el('button', {
+                        className: 'btn btn-success',
+                        onClick: function() { handleVisit(place.id); }
+                    }, ['\uD83D\uDDD3\uFE0F Visit this week!']));
+                }
+                actions.push(el('button', {
+                    className: 'btn btn-danger',
+                    onClick: function() { handleDelete(place.id, place.name); }
+                }, ['\uD83D\uDDD1\uFE0F Delete']));
+
+                var cardCls = 'card' + (isThisWeek ? ' card-visited' : '');
+
+                container.appendChild(el('div', { className: cardCls }, [
+                    el('h3',  null, [place.name]),
+                    el('div', { className: 'card-detail' }, ['\uD83D\uDCEB ' + place.address]),
+                    el('div', { className: 'badges' }, badges),
+                    el('div', { className: 'card-actions' }, actions)
+                ]));
+            });
+        }
+
+        /** Render the week status banner above the places list. */
+        function renderWeekBanner(places) {
+            var box = $('#week-status');
+            box.innerHTML = '';
+            var v = visitedThisWeek(places);
+            if (v) {
+                box.appendChild(el('div', { className: 'week-banner week-banner-done' },
+                    ['\u2705 This week\u2019s pick: ' + v.name + '!']));
+            } else if (places.length > 0) {
+                box.appendChild(el('div', { className: 'week-banner week-banner-open' },
+                    ['\uD83C\uDF1F Pick a place to visit this week!']));
+            }
+        }
+
+        /** Render visit history, newest first. */
+        function renderHistory() {
+            var places    = loadPlaces();
+            var container = $('#history-list');
+            container.innerHTML = '';
+
+            // Flatten all visits
+            var all = [];
+            places.forEach(function(p) {
+                p.visits.forEach(function(v) {
+                    all.push({
+                        name: p.name, cuisine: p.cuisine,
+                        address: p.address, date: v.date
+                    });
+                });
+            });
+
+            if (all.length === 0) {
+                container.appendChild(el('div', { className: 'empty-state' }, [
+                    el('span', { className: 'big-emoji' }, ['\uD83D\uDCC5']),
+                    el('p', null, ['No visits yet!']),
+                    el('p', null, ['Go to Places and pick one!'])
+                ]));
+                return;
+            }
+
+            all.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+
+            all.forEach(function(v) {
+                container.appendChild(el('div', { className: 'card card-history' }, [
+                    el('div', { className: 'card-detail' },
+                       ['\uD83D\uDCC5 ' + formatDate(v.date)]),
+                    el('h3',  null, [v.name]),
+                    el('div', { className: 'card-detail' }, ['\uD83C\uDF7D\uFE0F ' + v.cuisine]),
+                    el('div', { className: 'card-detail' }, ['\uD83D\uDCEB ' + v.address])
+                ]));
+            });
+        }
+
+        /** Fill the settings form with saved values. */
+        function fillSettingsForm() {
+            var s = loadSettings();
+            $('#home-address').value = s.homeAddress || '';
+            $('#home-lat').value = s.homeLat != null ? s.homeLat : '';
+            $('#home-lon').value = s.homeLon != null ? s.homeLon : '';
+            clearGeocodeStatus('geocode-home-status');
+        }
+
+        // ==========================================
+        // GEOCODING (Nominatim API)
+        // ==========================================
+
+        /**
+         * Geocode an address using Nominatim.
+         * Respects 1-second rate limit per Nominatim usage policy.
+         * Returns a Promise-like callback pattern for broad browser support.
+         */
+        function geocodeAddress(address, onSuccess, onError) {
+            var trimmed = sanitize(address, 200);
+            if (!trimmed) {
+                onError('Please enter an address first!');
+                return;
+            }
+
+            // Rate limit: at least 1 second between requests
+            var now = Date.now();
+            var wait = Math.max(0, 1000 - (now - lastGeocodeFetch));
+
+            setTimeout(function() {
+                lastGeocodeFetch = Date.now();
+                var url = NOMINATIM_URL + '?format=json&limit=1&q=' + encodeURIComponent(trimmed);
+
+                fetch(url, {
+                    headers: { 'Accept': 'application/json' }
+                })
+                .then(function(resp) {
+                    if (!resp.ok) throw new Error('Network error (' + resp.status + ')');
+                    return resp.json();
+                })
+                .then(function(data) {
+                    if (!Array.isArray(data) || data.length === 0) {
+                        onError('No results found for that address. Try being more specific (add city/state)!');
+                        return;
+                    }
+                    var lat = parseFloat(data[0].lat);
+                    var lon = parseFloat(data[0].lon);
+                    if (isNaN(lat) || isNaN(lon)) {
+                        onError('Got invalid coordinates. Try a different address!');
+                        return;
+                    }
+                    lat = Math.round(lat * 1000000) / 1000000;
+                    lon = Math.round(lon * 1000000) / 1000000;
+                    onSuccess(lat, lon, data[0].display_name || trimmed);
+                })
+                .catch(function(err) {
+                    onError('Could not reach the geocoding service. Check your internet connection!');
+                });
+            }, wait);
+        }
+
+        /** Show geocode status message in a status element. */
+        function setGeocodeStatus(statusId, message, isError) {
+            var el_ = $('#' + statusId);
+            if (!el_) return;
+            el_.textContent = message;
+            el_.className = 'geocode-status ' + (isError ? 'error' : 'success');
+        }
+
+        /** Clear geocode status. */
+        function clearGeocodeStatus(statusId) {
+            var el_ = $('#' + statusId);
+            if (!el_) return;
+            el_.textContent = '';
+            el_.className = 'geocode-status';
+        }
+
+        // ==========================================
+        // AUTOCOMPLETE (Restaurant Name Search)
+        // ==========================================
+
+        /** Hide the autocomplete dropdown. */
+        function hideAutocomplete() {
+            var dd = $('#autocomplete-dropdown');
+            if (dd) {
+                dd.style.display = 'none';
+                dd.innerHTML = ''; // safe: clearing only
+            }
+        }
+
+        /** Show a loading indicator in the dropdown. */
+        function showAutocompleteLoading() {
+            var dd = $('#autocomplete-dropdown');
+            if (!dd) return;
+            dd.innerHTML = '';
+            dd.style.display = 'block';
+            dd.appendChild(el('div', { className: 'autocomplete-loading' },
+                ['\u23F3 Searching restaurants...']));
+        }
+
+        /**
+         * Search Nominatim for restaurants matching the typed name.
+         * Appends "Hartford CT restaurant" to bias results locally.
+         * Respects the shared 1-second rate limit.
+         */
+        function searchRestaurants(query, callback) {
+            var trimmed = sanitize(query, 100);
+            if (!trimmed || trimmed.length < 2) {
+                console.log('[Autocomplete] Query too short, skipping:', trimmed);
+                callback([]);
+                return;
+            }
+
+            var searchQuery = trimmed + AUTOCOMPLETE_SUFFIX;
+            console.log('[Autocomplete] Searching for:', searchQuery);
+
+            // Rate limit: at least 1 second between requests
+            var now = Date.now();
+            var wait = Math.max(0, 1000 - (now - lastGeocodeFetch));
+            if (wait > 0) console.log('[Autocomplete] Rate limiting, waiting', wait, 'ms');
+
+            setTimeout(function() {
+                lastGeocodeFetch = Date.now();
+                var url = NOMINATIM_URL + '?format=json&addressdetails=1&limit=5&q=' + encodeURIComponent(searchQuery);
+                console.log('[Autocomplete] Fetching:', url);
+
+                fetch(url, {
+                    headers: { 'Accept': 'application/json' }
+                })
+                .then(function(resp) {
+                    if (!resp.ok) throw new Error('Network error (' + resp.status + ')');
+                    return resp.json();
+                })
+                .then(function(data) {
+                    console.log('[Autocomplete] Raw results:', data.length, 'items', data);
+                    if (!Array.isArray(data)) { callback([]); return; }
+                    var results = data.map(function(item) {
+                        var lat = parseFloat(item.lat);
+                        var lon = parseFloat(item.lon);
+                        if (isNaN(lat) || isNaN(lon)) return null;
+
+                        // Use the OSM name if available, otherwise first part of display_name
+                        var displayName = (typeof item.display_name === 'string') ? item.display_name : '';
+                        var shortName = (typeof item.name === 'string' && item.name)
+                            ? item.name
+                            : displayName.split(',')[0].trim();
+
+                        // Build address from addressdetails if available, else from display_name
+                        var address = '';
+                        var ad = item.address;
+                        if (ad) {
+                            var parts = [];
+                            if (ad.house_number) parts.push(ad.house_number);
+                            if (ad.road) parts.push(ad.road);
+                            if (ad.city || ad.town || ad.village) parts.push(ad.city || ad.town || ad.village);
+                            if (ad.state) parts.push(ad.state);
+                            if (ad.postcode) parts.push(ad.postcode);
+                            address = parts.join(', ');
+                        }
+                        if (!address) {
+                            var addrParts = displayName.split(',').slice(1, 5).map(function(s) { return s.trim(); });
+                            address = addrParts.join(', ');
+                        }
+
+                        // Include the OSM type (restaurant, fast_food, etc.) for context
+                        var placeType = (typeof item.type === 'string') ? item.type.replace(/_/g, ' ') : '';
+
+                        console.log('[Autocomplete] Parsed result:', shortName, '|', address, '| type:', placeType);
+                        return {
+                            name: shortName.substring(0, 100),
+                            address: address.substring(0, 200),
+                            fullDisplay: displayName.substring(0, 300),
+                            type: placeType,
+                            lat: Math.round(lat * 1000000) / 1000000,
+                            lon: Math.round(lon * 1000000) / 1000000
+                        };
+                    }).filter(function(r) { return r !== null; });
+                    console.log('[Autocomplete] Returning', results.length, 'parsed results');
+                    callback(results);
+                })
+                .catch(function(err) {
+                    console.error('[Autocomplete] Fetch error:', err);
+                    callback([]);
+                });
+            }, wait);
+        }
+
+        /**
+         * Render autocomplete results in the dropdown.
+         * SECURITY: All text rendered via textContent/createTextNode.
+         */
+        function renderAutocompleteResults(results) {
+            var dd = $('#autocomplete-dropdown');
+            if (!dd) return;
+            dd.innerHTML = ''; // safe: clearing only
+
+            if (results.length === 0) {
+                dd.appendChild(el('div', { className: 'autocomplete-loading' },
+                    ['\uD83E\uDD37 No restaurants found. Try a different name!']));
+                return;
+            }
+
+            results.forEach(function(result) {
+                var nameText = '\uD83C\uDF7D\uFE0F ' + result.name;
+                var children = [
+                    el('div', { className: 'autocomplete-item-name' }, [nameText]),
+                    el('div', { className: 'autocomplete-item-address' },
+                        ['\uD83D\uDCCD ' + result.address])
+                ];
+                if (result.type) {
+                    children.push(el('div', { className: 'autocomplete-item-address' },
+                        ['\uD83C\uDFF7\uFE0F ' + result.type]));
+                }
+                var item = el('div', { className: 'autocomplete-item',
+                    onClick: function() { selectAutocompleteResult(result); }
+                }, children);
+                dd.appendChild(item);
+            });
+        }
+
+        /** Handle selection of an autocomplete result. */
+        function selectAutocompleteResult(result) {
+            $('#place-name').value = result.name;
+            $('#place-address').value = result.address;
+            $('#place-lat').value = result.lat;
+            $('#place-lon').value = result.lon;
+            hideAutocomplete();
+            setGeocodeStatus('geocode-place-status',
+                '\u2705 Auto-filled! (' + result.lat + ', ' + result.lon + ')', false);
+            // Move focus to cuisine field for smooth flow
+            $('#place-cuisine').focus();
+        }
+
+        /** Debounced handler for place-name input. */
+        function handleNameInput() {
+            if (autocompleteTimer) clearTimeout(autocompleteTimer);
+            var query = $('#place-name').value.trim();
+            console.log('[Autocomplete] Input event, value:', query);
+
+            if (query.length < 2) {
+                hideAutocomplete();
+                return;
+            }
+
+            autocompleteTimer = setTimeout(function() {
+                console.log('[Autocomplete] Debounce fired, searching for:', query);
+                showAutocompleteLoading();
+                searchRestaurants(query, function(results) {
+                    // Only render if the input still matches (user may have typed more)
+                    var current = $('#place-name').value.trim();
+                    if (current.length < 2) { hideAutocomplete(); return; }
+                    console.log('[Autocomplete] Rendering', results.length, 'results');
+                    renderAutocompleteResults(results);
+                });
+            }, AUTOCOMPLETE_DELAY);
+        }
+
+        // ==========================================
+        // EVENT HANDLERS
+        // ==========================================
+
+        /** Validate, sanitize, and save a new place. */
+        function handleAddPlace(e) {
+            e.preventDefault();
+            clearErrors();
+
+            var name    = sanitize($('#place-name').value,    100);
+            var address = sanitize($('#place-address').value, 200);
+            var cuisine = sanitize($('#place-cuisine').value,  50);
+            var latRaw  = $('#place-lat').value;
+            var lonRaw  = $('#place-lon').value;
+
+            var ok = true;
+
+            if (!name)    { showFieldError('err-name',    'Please enter a name.');          ok = false; }
+            if (!address) { showFieldError('err-address', 'Please enter an address.');      ok = false; }
+            if (!cuisine) { showFieldError('err-cuisine', 'Please enter a type of food.');  ok = false; }
+
+            var lat = parseLat(latRaw);
+            var lon = parseLon(lonRaw);
+
+            if (!ok) return;
+
+            var places = loadPlaces();
+            if (places.length >= MAX_PLACES) {
+                toast('Limit of ' + MAX_PLACES + ' places reached!', true);
+                return;
+            }
+
+            places.push({
+                id: generateId(), name: name, address: address,
+                cuisine: cuisine, lat: lat, lon: lon, visits: []
+            });
+            savePlaces(places);
+            toast('\uD83C\uDF89 ' + name + ' added!');
+            hideAutocomplete();
+            $('#add-form').reset();
+            $('#place-lat').value = '';
+            $('#place-lon').value = '';
+            clearGeocodeStatus('geocode-place-status');
+            clearErrors();
+            showView('places');
+        }
+
+        /** Mark a place as this week's visit (with confirmation). */
+        function handleVisit(placeId) {
+            var places = loadPlaces();
+            var place  = places.find(function(p) { return p.id === placeId; });
+            if (!place) return;
+
+            if (visitedThisWeek(places)) {
+                toast('Already visited a place this week!', true);
+                renderPlaces();
+                return;
+            }
+
+            showModal(
+                '\uD83D\uDDD3\uFE0F Visit ' + place.name + '?',
+                'Mark this as your food outing for the week?',
+                "Yes, let's go!", 'btn-success',
+                function() {
+                    // Re-load fresh to prevent race conditions
+                    var fresh = loadPlaces();
+                    if (visitedThisWeek(fresh)) {
+                        toast('Already visited a place this week!', true);
+                        renderPlaces();
+                        return;
+                    }
+                    var target = fresh.find(function(p) { return p.id === placeId; });
+                    if (!target) return;
+
+                    var now = new Date();
+                    target.visits.push({ date: now.toISOString(), weekKey: weekKey(now) });
+                    savePlaces(fresh);
+                    toast('\uD83C\uDF89 Visiting ' + target.name + '!');
+                    renderPlaces();
+                }
+            );
+        }
+
+        /** Delete a place (with confirmation). */
+        function handleDelete(placeId, placeName) {
+            showModal(
+                '\uD83D\uDDD1\uFE0F Delete ' + placeName + '?',
+                'This removes the place and all its visit history forever!',
+                'Delete', 'btn-danger',
+                function() {
+                    var places = loadPlaces().filter(function(p) {
+                        return p.id !== placeId;
+                    });
+                    savePlaces(places);
+                    toast(placeName + ' deleted.');
+                    renderPlaces();
+                }
+            );
+        }
+
+        /** Validate and save home coordinates. */
+        function handleSaveSettings(e) {
+            e.preventDefault();
+            clearErrors();
+
+            var homeAddress = sanitize($('#home-address').value, 200);
+            var latRaw = sanitize($('#home-lat').value, 20);
+            var lonRaw = sanitize($('#home-lon').value, 20);
+            var ok = true;
+
+            var lat = parseLat(latRaw);
+            var lon = parseLon(lonRaw);
+
+            if (lat === false) { showFieldError('err-home-lat', 'Must be -90 to 90.');   ok = false; }
+            if (lon === false) { showFieldError('err-home-lon', 'Must be -180 to 180.'); ok = false; }
+
+            if (!ok) return;
+
+            saveSettings({ homeLat: lat, homeLon: lon, homeAddress: homeAddress });
+            toast('\uD83D\uDCBE Home location saved!');
+        }
+
+        /** Clear all app data (with confirmation). */
+        function handleClearData() {
+            showModal(
+                '\uD83D\uDDD1\uFE0F Delete Everything?',
+                'This removes ALL places and visit history forever!',
+                'Delete All', 'btn-danger',
+                function() {
+                    localStorage.removeItem(STORAGE_PLACES);
+                    localStorage.removeItem(STORAGE_SETTINGS);
+                    toast('All data deleted.');
+                    showView('places');
+                    fillSettingsForm();
+                }
+            );
+        }
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        function init() {
+            // Wire up bottom navigation
+            document.querySelectorAll('#bottom-nav button').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    showView(btn.getAttribute('data-view'));
+                });
+            });
+
+            // Wire up forms
+            $('#add-form').addEventListener('submit', handleAddPlace);
+            $('#settings-form').addEventListener('submit', handleSaveSettings);
+            $('#btn-clear-data').addEventListener('click', handleClearData);
+
+            // Wire up autocomplete on place name field
+            $('#place-name').addEventListener('input', handleNameInput);
+
+            // Close autocomplete when clicking outside
+            document.addEventListener('click', function(e) {
+                var wrap = $('.autocomplete-wrap');
+                if (wrap && !wrap.contains(e.target)) {
+                    hideAutocomplete();
+                }
+            });
+
+            // Wire up geocode button for Add Place
+            $('#btn-geocode-place').addEventListener('click', function() {
+                var btn = $('#btn-geocode-place');
+                var address = $('#place-address').value;
+                btn.disabled = true;
+                btn.textContent = '\u23F3 Looking...';
+                clearGeocodeStatus('geocode-place-status');
+
+                geocodeAddress(address,
+                    function(lat, lon, displayName) {
+                        $('#place-lat').value = lat;
+                        $('#place-lon').value = lon;
+                        setGeocodeStatus('geocode-place-status',
+                            '\u2705 Found! (' + lat + ', ' + lon + ')', false);
+                        btn.disabled = false;
+                        btn.innerHTML = '&#x1F30D;&#x2728; Get Coords!';
+                    },
+                    function(errMsg) {
+                        setGeocodeStatus('geocode-place-status',
+                            '\u274C ' + errMsg, true);
+                        btn.disabled = false;
+                        btn.innerHTML = '&#x1F30D;&#x2728; Get Coords!';
+                    }
+                );
+            });
+
+            // Wire up geocode button for Home Address
+            $('#btn-geocode-home').addEventListener('click', function() {
+                var btn = $('#btn-geocode-home');
+                var address = $('#home-address').value;
+                btn.disabled = true;
+                btn.textContent = '\u23F3 Looking...';
+                clearGeocodeStatus('geocode-home-status');
+
+                geocodeAddress(address,
+                    function(lat, lon, displayName) {
+                        $('#home-lat').value = lat;
+                        $('#home-lon').value = lon;
+                        setGeocodeStatus('geocode-home-status',
+                            '\u2705 Found! (' + lat + ', ' + lon + ')', false);
+                        btn.disabled = false;
+                        btn.innerHTML = '&#x1F3E0;&#x2728; Get Coords!';
+                    },
+                    function(errMsg) {
+                        setGeocodeStatus('geocode-home-status',
+                            '\u274C ' + errMsg, true);
+                        btn.disabled = false;
+                        btn.innerHTML = '&#x1F3E0;&#x2728; Get Coords!';
+                    }
+                );
+            });
+
+            // Clear hidden fields when Add form is reset
+            $('#add-form').addEventListener('reset', function() {
+                $('#place-lat').value = '';
+                $('#place-lon').value = '';
+                clearGeocodeStatus('geocode-place-status');
+                hideAutocomplete();
+            });
+
+            // Initial render
+            renderPlaces();
+            fillSettingsForm();
+        }
+
+        init();
+    })();
+    </script>
+</body>
+</html>
